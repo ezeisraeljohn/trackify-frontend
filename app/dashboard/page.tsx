@@ -153,7 +153,7 @@ export default function Dashboard() {
       return
     }
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/accounts`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/accounts/`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.status === 403) {
@@ -1257,7 +1257,7 @@ export default function Dashboard() {
       const MonoConnect = (await import("@mono.co/connect.js")).default
       const accessToken = localStorage.getItem("access_token")
       const monoInstance = new MonoConnect({
-        key: "test_pk_s2jh16p6q8lq9hl9k039",
+        key: process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY,
         scope: "auth",
         onSuccess: async (data: any) => {
           try {
