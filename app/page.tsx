@@ -38,7 +38,27 @@ export default function LoginPage() {
       setDarkMode(false)
       document.documentElement.classList.remove("dark")
     }
-  }, [])
+
+    // --- Auto-login logic ---
+    const accessToken = localStorage.getItem("access_token")
+    const tokenType = localStorage.getItem("token_type")
+    // Optionally, store and check token expiry (if your backend provides it)
+    const tokenExpiry = localStorage.getItem("access_token_expiry") // ISO string or timestamp
+
+    // If you store expiry, check it; otherwise, just check token presence
+    if (accessToken && tokenType) {
+      if (tokenExpiry) {
+        const expiryDate = new Date(tokenExpiry)
+        if (expiryDate > new Date()) {
+          // Token is valid, redirect to dashboard
+          router.replace("/dashboard")
+        }
+      } else {
+        // No expiry info, assume valid
+        router.replace("/dashboard")
+      }
+    }
+  }, [router])
 
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode
