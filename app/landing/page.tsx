@@ -24,6 +24,7 @@ export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrollY, setScrollY] = useState(0)
   const [darkMode, setDarkMode] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     // Check for saved theme preference
@@ -41,6 +42,22 @@ export default function LandingPage() {
     const handleScroll = () => setScrollY(window.scrollY)
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  useEffect(() => {
+    const accessToken = localStorage.getItem("access_token")
+    const tokenType = localStorage.getItem("token_type")
+    const tokenExpiry = localStorage.getItem("access_token_expiry")
+    if (accessToken && tokenType) {
+      if (tokenExpiry) {
+        const expiryDate = new Date(tokenExpiry)
+        setIsLoggedIn(expiryDate > new Date())
+      } else {
+        setIsLoggedIn(true)
+      }
+    } else {
+      setIsLoggedIn(false)
+    }
   }, [])
 
   const toggleDarkMode = () => {
@@ -218,10 +235,16 @@ export default function LandingPage() {
                 {darkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
               </button>
               <button
-                onClick={() => router.push("/")}
+                onClick={() => {
+                  if (isLoggedIn) {
+                    router.push("/dashboard")
+                  } else {
+                    router.push("/")
+                  }
+                }}
                 className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 text-white"
               >
-                Get Started
+                {isLoggedIn ? "Dashboard" : "Get Started"}
               </button>
             </div>
 
