@@ -75,6 +75,14 @@ interface TransactionAnalytics {
   spendingConsistencyScore: number
 }
 
+// Add ChatMessage type for chatMessages state
+type ChatMessage = {
+  id: number
+  type: "user" | "ai" | "error"
+  content: string
+  timestamp: Date
+}
+
 export default function Dashboard() {
   const searchParams = useSearchParams()
   const accountId = searchParams.get("account_id")
@@ -87,7 +95,7 @@ export default function Dashboard() {
   const [darkMode, setDarkMode] = useState(false)
   const [activeSection, setActiveSection] = useState("overview")
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [chatMessages, setChatMessages] = useState([])
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [currentMessage, setCurrentMessage] = useState("")
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [aiError, setAiError] = useState("")
@@ -209,7 +217,12 @@ export default function Dashboard() {
         // Always analyze transactions after setting them
         analyzeTransactions(data.data || [])
       } catch (error) {
-        setError(error.message || "Failed to fetch transactions")
+        // Fix: error is unknown, so use type assertion or check type
+        if (error instanceof Error) {
+          setError(error.message || "Failed to fetch transactions")
+        } else {
+          setError("Failed to fetch transactions")
+        }
         setTransactions([])
         setAnalytics(null)
       } finally {
@@ -370,9 +383,17 @@ export default function Dashboard() {
     analytics.averageDebitAmount = debitTransactionCount > 0 ? debitTransactionAmount / debitTransactionCount : 0
 
     // Days Since Last Transaction
-    analytics.daysSinceLastTransaction = lastTransactionDate
-      ? Math.ceil(Math.abs(new Date().getTime() - lastTransactionDate.getTime()) / (1000 * 3600 * 24))
-      : 0
+    if (
+      lastTransactionDate &&
+      typeof (lastTransactionDate as Date).getTime === "function" &&
+      !isNaN((lastTransactionDate as Date).getTime())
+    ) {
+      analytics.daysSinceLastTransaction = Math.ceil(
+        Math.abs(Date.now() - (lastTransactionDate as Date).getTime()) / (1000 * 3600 * 24)
+      )
+    } else {
+      analytics.daysSinceLastTransaction = 0
+    }
 
     // Highest Spending Day
     let highestSpendingDay = ""
@@ -477,7 +498,7 @@ export default function Dashboard() {
     }
 
     if (streamingMessageId) {
-      setChatMessages((prev) =>
+      setChatMessages((prev: ChatMessage[]) =>
         prev.map((msg) => (msg.id === streamingMessageId ? { ...msg, content: streamingContent } : msg)),
       )
       setStreamingMessageId(null)
@@ -977,14 +998,14 @@ export default function Dashboard() {
   const sendMessageToAI = async (message: string) => {
     if (!message.trim()) return
 
-    const userMessage = {
+    const userMessage: ChatMessage = {
       id: Date.now(),
       type: "user",
       content: message,
       timestamp: new Date(),
     }
 
-    setChatMessages((prev) => [...prev, userMessage])
+    setChatMessages((prev: ChatMessage[]) => [...prev, userMessage])
     setCurrentMessage("")
     setIsAiLoading(true)
     setAiError("")
@@ -1011,13 +1032,13 @@ export default function Dashboard() {
       const aiMessageId = Date.now() + 1
 
       // Add empty AI message first
-      const aiMessage = {
+      const aiMessage: ChatMessage = {
         id: aiMessageId,
         type: "ai",
         content: "",
         timestamp: new Date(),
       }
-      setChatMessages((prev) => [...prev, aiMessage])
+      setChatMessages((prev: ChatMessage[]) => [...prev, aiMessage])
       setIsAiLoading(false)
 
       // Start typewriter effect
@@ -1040,7 +1061,7 @@ export default function Dashboard() {
 
           setStreamingContent((prev) => {
             const updated = prev + nextChar
-            setChatMessages((msgs) =>
+            setChatMessages((msgs: ChatMessage[]) =>
               msgs.map((msg) =>
                 msg.id === aiMessageId ? { ...msg, content: updated } : msg
               )
@@ -1051,7 +1072,7 @@ export default function Dashboard() {
           const delay = nextChar === " " ? 30 : Math.random() * 50 + 20
           typewriterTimeoutRef.current = setTimeout(typeWriter, delay)
         } else {
-          setChatMessages((prev) =>
+          setChatMessages((prev: ChatMessage[]) =>
             prev.map((msg) => (msg.id === aiMessageId ? { ...msg, content: fullContent } : msg)),
           )
           setStreamingMessageId(null)
@@ -1062,17 +1083,17 @@ export default function Dashboard() {
       }
 
       setTimeout(typeWriter, 300)
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Assistant error:", error)
       setAiError(error.message || "Failed to send message. Please try again.")
 
-      const errorMessage = {
+      const errorMessage: ChatMessage = {
         id: Date.now() + 1,
         type: "error",
         content: "Sorry, I'm having trouble responding right now. Please try again.",
         timestamp: new Date(),
       }
-      setChatMessages((prev) => [...prev, errorMessage])
+      setChatMessages((prev: ChatMessage[]) => [...prev, errorMessage])
       setIsAiLoading(false)
     }
   }

@@ -66,12 +66,42 @@ export default function LinkAccountPage() {
 
     setIsLoading(true)
     setMessage("")
+    
 
     try {
       // Dynamically import Mono Connect
       const MonoConnect = (await import("@mono.co/connect.js")).default
 
       // Initialize Mono with configuration
+      interface MonoConnectIdentity {
+        type: string
+        number: string
+      }
+
+      interface MonoConnectCustomer {
+        name: string
+        email: string
+        identity: MonoConnectIdentity
+      }
+
+      interface MonoConnectData {
+        customer: MonoConnectCustomer
+      }
+
+      interface MonoConnectSuccessData {
+        code: string
+        [key: string]: any
+      }
+
+      interface MonoConnectOptions {
+        key: string | undefined
+        scope: string
+        data: MonoConnectData
+        onSuccess: (data: MonoConnectSuccessData) => Promise<void>
+        onLoad: () => void
+        onClose: () => void
+      }
+
       const monoInstance = new MonoConnect({
         key: process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY,
         scope: "auth",
@@ -85,7 +115,7 @@ export default function LinkAccountPage() {
             },
           },
         },
-        onSuccess: async (data) => {
+        onSuccess: async (data: MonoConnectSuccessData) => {
           console.log("Success! Code:", data.code)
 
           try {
@@ -106,14 +136,18 @@ export default function LinkAccountPage() {
               throw new Error(`API error (${response.status}): ${errorText || "No error details provided"}`)
             }
 
-            const responseData = await response.json()
+            const responseData: {
+              message: string
+              data?: { id: string }
+              error?: string
+            } = await response.json()
 
             if (responseData.message === "Account linked successfully" && responseData.data) {
               console.log("Account linked successfully")
               setMessage("Account linked successfully! Syncing transactions...")
 
               // Extract account_id from the linked account data
-              const accountId = responseData.data.id
+              const accountId: string = responseData.data.id
               console.log("Account ID:", accountId)
 
               try {
@@ -134,7 +168,7 @@ export default function LinkAccountPage() {
                   console.error("Transaction sync failed:", syncErrorText)
                   setMessage(`Account linked successfully, but transaction sync failed: ${syncErrorText}`)
                 } else {
-                  const syncResponseData = await syncResponse.json()
+                  const syncResponseData: any = await syncResponse.json()
                   console.log("Transactions synced successfully:", syncResponseData)
                   setMessage("Account linked and transactions synced successfully! Redirecting to dashboard...")
 
@@ -143,7 +177,7 @@ export default function LinkAccountPage() {
                     router.push(`/dashboard?account_id=${accountId}`)
                   }, 2000)
                 }
-              } catch (syncError) {
+              } catch (syncError: any) {
                 console.error("Error syncing transactions:", syncError)
                 setMessage(`Account linked successfully, but transaction sync failed: ${syncError.message}`)
               }
@@ -151,28 +185,32 @@ export default function LinkAccountPage() {
               console.log("Linking failed", responseData.error || "Unknown error")
               setMessage(`Linking failed: ${responseData.error || "Unknown error"}`)
             }
-          } catch (error) {
+          } catch (error: any) {
             console.error("Error in account linking process:", error)
             setMessage(`Error: ${error.message || "Unknown error occurred"}`)
           } finally {
             setIsLoading(false)
           }
         },
-        onLoad: () => {
+        onLoad: (): void => {
           console.log("Mono widget loaded")
         },
-        onClose: () => {
+        onClose: (): void => {
           console.log("Widget closed")
           setIsLoading(false)
         },
-      })
+      } as MonoConnectOptions)
 
       // Setup and open the widget
       monoInstance.setup()
       monoInstance.open()
     } catch (error) {
       console.error("Error initializing Mono Connect:", error)
-      setMessage(`Error: ${error.message || "Failed to initialize Mono Connect"}`)
+      if (error instanceof Error) {
+        setMessage(`Error: ${error.message || "Failed to initialize Mono Connect"}`)
+      } else {
+        setMessage("Error: Failed to initialize Mono Connect")
+      }
       setIsLoading(false)
     }
   }, [accessToken, router])
