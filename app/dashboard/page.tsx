@@ -484,7 +484,7 @@ export default function Dashboard() {
     setCurrentMessage("")
     setActiveSection("overview")
     setShowLogoutConfirm(false)
-    router.push("/")
+    router.push("/landing")
   }
 
   const cancelLogout = () => {
