@@ -218,7 +218,7 @@ export default function LinkAccountPage() {
   const handleLogout = () => {
     localStorage.removeItem("access_token")
     localStorage.removeItem("token_type")
-    router.push("/")
+    router.push("/landing")
   }
 
   if (!accessToken) {
