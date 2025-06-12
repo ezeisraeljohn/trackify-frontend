@@ -180,7 +180,11 @@ export default function SignupPage() {
       }, 2000)
     } catch (error) {
       console.error("Registration error:", error)
-      setError(error.message || "Registration failed. Please try again.")
+      setError(
+        error && typeof error === "object" && "message" in error
+          ? (error as { message?: string }).message || "Registration failed. Please try again."
+          : "Registration failed. Please try again."
+      )
     } finally {
       setIsLoading(false)
     }

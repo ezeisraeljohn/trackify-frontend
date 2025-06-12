@@ -112,7 +112,11 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error("Login error:", error)
-      setError(error.message || "Login failed. Please try again.")
+      setError(
+        error && typeof error === "object" && "message" in error && typeof (error as any).message === "string"
+          ? (error as { message: string }).message
+          : "Login failed. Please try again."
+      )
     } finally {
       setIsLoading(false)
     }

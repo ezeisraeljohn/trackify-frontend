@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CheckCircleIcon, XCircleIcon, MailIcon, ArrowLeftIcon, ArrowRightIcon, SunIcon, MoonIcon } from "lucide-react"
 
-export default function VerifyEmailPage() {
+function VerifyEmailPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get("email") || ""
@@ -66,7 +66,11 @@ export default function VerifyEmailPage() {
         router.push("/")
       }, 2000)
     } catch (err) {
-      setError(err.message || "Verification failed. Please try again.")
+      setError(
+        err && typeof err === "object" && "message" in err
+          ? (err as { message: string }).message
+          : "Verification failed. Please try again."
+      )
     } finally {
       setIsLoading(false)
     }
@@ -91,7 +95,11 @@ export default function VerifyEmailPage() {
       }
       setSuccess("Verification code resent! Please check your email.")
     } catch (err) {
-      setError(err.message || "Failed to resend code. Please try again.")
+      setError(
+        err && typeof err === "object" && "message" in err
+          ? (err as { message: string }).message
+          : "Failed to resend code. Please try again."
+      )
     } finally {
       setIsLoading(false)
     }
@@ -259,5 +267,13 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <VerifyEmailPageContent />
+    </Suspense>
   )
 }
