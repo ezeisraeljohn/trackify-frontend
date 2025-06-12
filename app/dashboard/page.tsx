@@ -1414,7 +1414,7 @@ export default function Dashboard() {
             {/* Make logo + Trackify clickable */}
             <button
               className="flex items-center group focus:outline-none"
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/landing")}
               tabIndex={0}
               aria-label="Go to landing page"
               style={{ background: "none", border: "none", padding: 0, margin: 0 }}
