@@ -39,25 +39,62 @@ export default function LoginPage() {
       document.documentElement.classList.remove("dark")
     }
 
-    // --- Auto-login logic ---
-    const accessToken = localStorage.getItem("access_token")
-    const tokenType = localStorage.getItem("token_type")
-    // Optionally, store and check token expiry (if your backend provides it)
-    const tokenExpiry = localStorage.getItem("access_token_expiry") // ISO string or timestamp
-
-    // If you store expiry, check it; otherwise, just check token presence
-    if (accessToken && tokenType) {
-      if (tokenExpiry) {
-        const expiryDate = new Date(tokenExpiry)
-        if (expiryDate > new Date()) {
-          // Token is valid, redirect to dashboard
-          router.replace("/dashboard")
+    // --- Email verification and account check on initial visit ---
+    const checkUserStatus = async () => {
+      const accessToken = localStorage.getItem("access_token")
+      const tokenType = localStorage.getItem("token_type")
+      if (!accessToken || !tokenType) {
+        router.replace("/")
+        return
+      }
+      try {
+        // 1. Confirm email verification
+        const confirmRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/confirm-email-verification`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        )
+        if (!confirmRes.ok) {
+          localStorage.removeItem("access_token")
+          localStorage.removeItem("token_type")
+          router.replace("/")
+          return
         }
-      } else {
-        // No expiry info, assume valid
-        router.replace("/dashboard")
+        const confirmData = await confirmRes.json()
+        if (confirmData.status === "pending") {
+          const email = localStorage.getItem("user_email") || ""
+          router.replace(`/verify-email${email ? `?email=${encodeURIComponent(email)}` : ""}`)
+          return
+        }
+        // 2. Check if user has at least one account linked
+        const accountsRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/accounts/`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+        if (!accountsRes.ok) {
+          router.replace("/link-account")
+          return
+        }
+        const accountsData = await accountsRes.json()
+        const accounts = accountsData.data || []
+        if (accounts.length > 0) {
+          router.replace(`/dashboard?account_id=${accounts[0].id}`)
+        } else {
+          router.replace("/link-account")
+        }
+      } catch {
+        localStorage.removeItem("access_token")
+        localStorage.removeItem("token_type")
+        router.replace("/")
       }
     }
+
+    checkUserStatus()
   }, [router])
 
   const toggleDarkMode = () => {
@@ -108,9 +145,30 @@ export default function LoginPage() {
 
       const loginData = await loginResponse.json()
 
-      // Store the access token
+      // Store the access token and user email for later use
       localStorage.setItem("access_token", loginData.access_token)
       localStorage.setItem("token_type", loginData.token_type)
+      localStorage.setItem("user_email", credentials.username)
+
+      // --- Email verification check after login ---
+      const confirmRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/auth/confirm-email-verification`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${loginData.access_token}`,
+          },
+        }
+      )
+      if (!confirmRes.ok) {
+        throw new Error("Failed to confirm email verification status.")
+      }
+      const confirmData = await confirmRes.json()
+      if (confirmData.status === "pending") {
+        // Redirect to verify-email page
+        router.push(`/verify-email?email=${encodeURIComponent(credentials.username)}`)
+        return
+      }
 
       // Check for connected accounts
       const accountsRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/accounts/`, {
